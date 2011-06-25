@@ -2,18 +2,23 @@
 /**
  * Module dependencies.
  */
-
 var express = require('express')
   , app = module.exports = express.createServer()
   , io = require('socket.io').listen(app)
   , patch = require('./libs/diff_match_patch_uncompressed')
-  , RedisStore = require('connect-redis')(express);
+  , RedisStore = require('connect-redis')(express)
+  , cradle = require('cradle');
 
-// Configuration
+var conn = new(cradle.Connection)();
+var db = conn.database('express1_users');
 
+/**
+ * Configuration
+ */
 app.configure(function() {
   app.set('views', __dirname + '/views');
   app.set('view engine', 'jade');
+//   app.use(express.logger());
   app.use(express.bodyParser());
   app.use(express.methodOverride());
   app.use(require('stylus').middleware({ src: __dirname + '/public' }));
@@ -33,14 +38,18 @@ app.configure('production', function(){
 });
 
 
-
-// Global variables
+/**
+ * Global variables
+ */
 var n = 0;
 var oldText = "";
-var sessionAuth = false;
+var sessionAuth = true;
 
 
-// Routes
+
+/**
+ * Routes
+ */
 app.get('/', function(req, res) {
   if ( sessionAuth ) {
     res.render('index', {
@@ -54,9 +63,23 @@ app.get('/', function(req, res) {
 });
 
 app.post('/login', function(req, res) {
-  sessionAuth = true;
-  res.redirect('back');
+  var data = req.body;
+
+  db.get(data.username,
+    function(err, doc){
+      if(!doc) {
+        res.render('index', {title: 'No user found'});
+
+      // Check if passwords match
+      } else if(doc.password != data.password) {
+        res.render('index', {title: 'Wrong password'});
+
+      // User is logged in
+      } else { res.render('index', {flash: 'Logged in!'}); }
+  });
+//   res.redirect('back');
 });
+
 
 // Listen on port 8080
 app.listen(8080);
