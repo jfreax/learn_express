@@ -1,0 +1,181 @@
+!!! 5
+
+html
+  head
+    title= title
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    script(type="text/javascript", src="/javascripts/controller.js")
+    script(type="text/javascript", src="/lib/socket.io.js")
+    script(type="text/javascript", src="/lib/jquery-1.6.1.min.js")
+    script(type="text/javascript", src="/lib/jquery.json-2.2.min.js")
+    script(type="text/javascript", src="/lib/diff_match_patch.js")
+
+    script(type="text/javascript", src="/lib/codemirror.js")
+    script(type="text/javascript", src="/lib/mode/javascript/javascript.js")
+    link(rel="stylesheet", href="stylesheets/codemirror.css")
+    link(rel="stylesheet", href="stylesheets/default.css")
+    link(rel="stylesheet", href="stylesheets/docs.css")
+
+    script(type="text/javascript", src="/lib/menu.js")
+    link(rel="stylesheet", href="stylesheets/menu_style.css")
+
+
+    style(type="text/css")
+      .searched {background: yellow;}
+      .fullscreen {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999; // muss das sein, ja?
+            margin: 0;
+            padding: 0;
+            border: 0px solid #BBBBBB;
+            opacity: 1;
+        }
+
+    script(type='text/javascript')
+        var markers = [];
+        var oldText = "";
+        var doNotSend = false;
+        var socket = io.connect();
+
+        var codeSession;
+        codeSession;
+
+
+        $(document).ready(function() {
+          mainmenu();
+          codeSession = CodeMirror.fromTextArea(document.getElementById("code"), {
+            value: "function myScript(){return 100;}",
+            mode:  "javascript",
+            lineNumbers: true,
+            onChange: function() { sendText(); },
+            onCursorActivity: function() { sendHighlighted(); },
+            onKeyEvent: function(i, e) {
+                // Hook into F11
+                if ((e.keyCode == 122 || e.keyCode == 27) && e.type == 'keydown') {
+                  e.stop();
+                  return toggleFullscreenEditing();
+                }
+              }
+
+          });
+        });
+
+        // Sends a message to the server via sockets
+        function sendText() {
+          if( doNotSend ) {
+            doNotSend = false;
+            return;
+          }
+
+          var dmp = new diff_match_patch();
+          var newText = codeSession.getValue();
+          var patch = dmp.patch_make(oldText, newText);
+
+          console.log( 'Ich sende: ' + newText + "|||" + oldText + " >>> " + patch );
+          var results = dmp.patch_apply(patch, oldText);
+          socket.send( $.toJSON({ text: dmp.patch_toText(patch) }) );
+ 
+          oldText = newText;
+        }
+
+        // Send my current highlighted text
+        function sendHighlighted() {
+          socket.emit( 'highlight', $.toJSON({ userid: 0, from: codeSession.getCursor(true), to: codeSession.getCursor(false) }) );
+        }
+        socket.on('highlight',function(data) {
+          var coords = $.parseJSON( data );
+          var id = coords.id;
+
+          if( markers[id] != undefined )
+            markers[id](); // unmark
+          markers[id] = codeSession.markText( coords.from, coords.to, "searched" );
+        });
+
+
+        function toggleFullscreenEditing() {
+          var editorDiv = $('.CodeMirror-scroll');
+          if (!editorDiv.hasClass('fullscreen')) {
+            toggleFullscreenEditing.beforeFullscreen = { height: editorDiv.height(), width: editorDiv.width() }
+            editorDiv.addClass('fullscreen');
+            editorDiv.height('100%');
+            editorDiv.width('100%');
+            codeSession.refresh();
+            document.getElementById('nav').style.display = "none";
+          }
+          else {
+            editorDiv.removeClass('fullscreen');
+            editorDiv.height(toggleFullscreenEditing.beforeFullscreen.height);
+            editorDiv.width(toggleFullscreenEditing.beforeFullscreen.width);
+            codeSession.refresh();
+            document.getElementById('nav').style.display = "block";
+          }
+        }
+
+        // Connected
+        socket.on('connect',function() {
+          console.log('Client has connected to the server!');
+
+        });
+
+        // Add a connect listener
+        socket.on('message',function(data) {
+          console.log('Received a message from the server!',data);
+        });
+
+        // Add a disconnect listener
+        socket.on('disconnect',function() {
+          console.log('The client has disconnected!');
+        });
+
+        // New text arrives
+        socket.on('msg', function (data) {
+          console.log("Get message... " + data);
+          //absatz = document.createElement('p');
+          //text   = document.createTextNode (data);
+          //absatz.appendChild (text);
+
+          //document.getElementById('code').value = data;
+          doNotSend = true;
+          codeSession.setValue( data );
+          oldText = data;
+        });
+
+
+  body
+    ul()#nav
+      li
+        a(href="#") Datei
+        ul
+          li
+            a(href="#") Öffnen
+          li
+            a(href="#") Speichern
+          li
+            a(href="#") Speichern unter...
+      li
+        a(href="#") Bearbeiten
+        ul
+          li
+            a(href="javascript:codeSession.undo()") Rückgängig
+          li
+            a(href="javascript:codeSession.redo()") Wiederherstellen
+      li
+        a(href="#") Ansicht
+        ul
+          li
+            a(href="javascript:toggleFullscreenEditing()") Vollbild
+      li
+        a(href="#") Einfügen
+      li
+        a(href="#") Extras
+
+    br/
+    br/
+    form()#codeForm
+      textarea( name="code" )#code
+        Please wait...

@@ -1,0 +1,61 @@
+!!! 5
+
+html
+  head
+    script(type="text/javascript", src="/lib/jquery-1.6.1.min.js")
+    link(rel="stylesheet", media="screen, projection", type="text/css", href="stylesheets/login.css")
+
+  body
+    div#container
+      div( class="topnav" )#topnav
+        |Have an account?
+        a( href="login", class="signin" )
+          span() Sign in
+      fieldset#signin_menu
+        form( method="post", action="login" )#signin
+          p
+            label( for="username" ) Username or email
+            input( name="username", value="", title="username", tabindex="4", type="text" )#username
+          p
+            label( for="password" ) Password
+            input( name="password", value="", title="password", tabindex="5", type="password" )#password
+          p( class="remember" )
+            input( value="Sign in", title="password", tabindex="6", type="submit" )#signin_submit
+            input( name="remember_me", value="1", title="password", tabindex="7", type="checkbox" )#remember
+            label( for="remember" ) Remember me
+          p( class="forgot" )
+            a( href="#" )#resend_password_link Forgot your password?
+          p( class="forgot-username" )
+            a( href="#", title="If you remember your password, try logging in with your email" )#forgot_username_link Forgot your username?
+
+
+    div
+      p
+        h1 Hallo...
+
+    script( type="text/javascript" )
+      $(document).ready(function() {
+        $("fieldset#signin_menu").toggle();
+        $(".signin").toggleClass("menu-open");
+
+        $(".signin").click(function(e) {
+          e.preventDefault();
+          $("fieldset#signin_menu").toggle();
+          $(".signin").toggleClass("menu-open");
+        });
+
+        $("fieldset#signin_menu").mouseup(function() {
+          return false
+        });
+
+        $(document).mouseup(function(e) {
+          if($(e.target).parent("a.signin").length==0) {
+            $(".signin").removeClass("menu-open");
+            $("fieldset#signin_menu").hide();
+          }
+        });
+      });
+
+<script type="text/javascript">
+
+</script>
